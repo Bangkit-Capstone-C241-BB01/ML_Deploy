@@ -4,7 +4,6 @@ from werkzeug.utils import secure_filename
 from tensorflow.keras.models import load_model
 import numpy as np
 from PIL import Image
-from tensorflow.keras.applications.inception_v3 import preprocess_input
 import logging
 from io import BytesIO
 
@@ -61,7 +60,12 @@ def prediction():
             image = request.files["image"]
 
             if image and allowed_file(image.filename):
+                filename = secure_filename(image.filename)
+                image_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+                
                 predicted_class, confidence_scores = predict_image_class(image.read())
+                
+                image.save(image_path)
 
                 return jsonify({
                     'status': {
@@ -100,6 +104,10 @@ def prediction():
             },
             "data": None
         }), 500
+        
+upload_folder = app.config["UPLOAD_FOLDER"]
+if not os.path.exists(upload_folder):
+    os.makedirs(upload_folder)
 
 if __name__ == '__main__':
     app.run(debug=True)
