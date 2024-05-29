@@ -25,6 +25,10 @@ with open("labels.txt", "r") as file:
 def predict_image_class(image_bytes):
     # Process the uploaded image
     image = Image.open(BytesIO(image_bytes))
+    
+    if image.mode != 'RGB':
+        image = image.convert('RGB')
+        
     image = image.resize((299, 299)) 
     image_array = np.array(image) / 255.0 
 
