@@ -99,6 +99,11 @@ def prediction():
                     image_bytes = response.content
 
                     predicted_class, confidence_scores = predict_image_class(image_bytes)
+                    
+                    if predicted_class == "Blur":
+                        accepted = False
+                    elif predicted_class == "Bokeh" or predicted_class == "Normal":
+                        accepted = True
 
                     return jsonify({
                         'status': {
@@ -107,7 +112,8 @@ def prediction():
                         },
                         "data": {
                             "predicted_class": predicted_class,
-                            "confidence_scores": confidence_scores
+                            "confidence_scores": confidence_scores,
+                            "accepted": accepted
                         }
                     }), 200
                 else:
