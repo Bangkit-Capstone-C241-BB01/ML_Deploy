@@ -1,4 +1,5 @@
 import os
+import requests
 from flask import Flask, jsonify, request
 from werkzeug.utils import secure_filename
 from tensorflow.keras.models import load_model
@@ -61,34 +62,71 @@ def index():
 def prediction():
     try:
         if request.method == "POST":
-            image = request.files["image"]
+            if "image" in request.files:
+                image = request.files["image"]
 
-            if image and allowed_file(image.filename):
-                filename = secure_filename(image.filename)
-                image_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
-                
-                predicted_class, confidence_scores = predict_image_class(image.read())
-                
-                image.save(image_path)
+                if image and allowed_file(image.filename):
+                    filename = secure_filename(image.filename)
+                    image_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
 
-                return jsonify({
-                    'status': {
-                        'code': 200,
-                        'message': 'Success fetching the API'
-                    },
-                    "data": {
-                        "predicted_class": predicted_class,
-                        "confidence_scores": confidence_scores
-                    }
-                }), 200
+                    predicted_class, confidence_scores = predict_image_class(image.read())
+
+                    image.save(image_path)
+
+                    return jsonify({
+                        'status': {
+                            'code': 200,
+                            'message': 'Success fetching the API'
+                        },
+                        "data": {
+                            "predicted_class": predicted_class,
+                            "confidence_scores": confidence_scores
+                        }
+                    }), 200
+                else:
+                    return jsonify({
+                        'status': {
+                            'code': 400,
+                            'message': 'Client side error: Invalid file format'
+                        },
+                        "data": None
+                    }), 400
+
+            elif "image_url" in request.json:
+                image_url = request.json["image_url"]
+                response = requests.get(image_url)
+                if response.status_code == 200:
+                    image_bytes = response.content
+
+                    predicted_class, confidence_scores = predict_image_class(image_bytes)
+
+                    return jsonify({
+                        'status': {
+                            'code': 200,
+                            'message': 'Success fetching the API'
+                        },
+                        "data": {
+                            "predicted_class": predicted_class,
+                            "confidence_scores": confidence_scores
+                        }
+                    }), 200
+                else:
+                    return jsonify({
+                        'status': {
+                            'code': 400,
+                            'message': 'Client side error: Invalid image URL or format'
+                        },
+                        "data": None
+                    }), 400
             else:
                 return jsonify({
                     'status': {
                         'code': 400,
-                        'message': 'Client side error: Invalid file format'
+                        'message': 'Client side error: No image or URL provided'
                     },
                     "data": None
                 }), 400
+
         else:
             return jsonify({
                 'status': {
@@ -97,7 +135,7 @@ def prediction():
                 },
                 "data": None
             }), 405
-            
+
     except Exception as e:
         app.logger.error("Error during inference: %s", e)
 
@@ -108,7 +146,7 @@ def prediction():
             },
             "data": None
         }), 500
-        
+
 upload_folder = app.config["UPLOAD_FOLDER"]
 if not os.path.exists(upload_folder):
     os.makedirs(upload_folder)
