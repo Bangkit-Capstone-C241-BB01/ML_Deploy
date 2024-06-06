@@ -8,15 +8,48 @@ from PIL import Image
 import logging
 from io import BytesIO
 
+from flask_httpauth import HTTPTokenAuth
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from errors import bp as errors_bp
+
 app = Flask(__name__)
+# Register the blueprint for error handling
+app.register_blueprint(errors_bp)
+
+# Rate limiting
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://",
+)
+
 app.config["ALLOWED_EXTENSIONS"] = set(["png", "jpg", "jpeg"])
 app.config["UPLOAD_FOLDER"] = "static/uploads/"
+app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
 
+auth = HTTPTokenAuth(scheme='Bearer')
 app.logger.setLevel(logging.DEBUG)
 
 def allowed_file(filename):
     return "." in filename and \
         filename.rsplit(".", 1)[1].lower() in app.config["ALLOWED_EXTENSIONS"]
+        
+#Authentication
+@auth.verify_token
+def verify_token(token):
+    return app.config["SECRET_KEY"] == token
+
+@auth.error_handler
+def unauthorized():
+    return {
+        "status": {
+            "code": 401,
+            "message": "Unauthorized Access!"
+        },
+        "data": None,
+    }, 401 
 
 # Load pre-trained model
 model = load_model("Model_Complete_Test_New.h5", compile=False)
@@ -49,6 +82,8 @@ def predict_image_class(image_bytes):
     return predicted_class, confidence_scores
 
 @app.route('/')
+@auth.login_required
+@limiter.limit("20 per hour")
 def index():
     return jsonify({
         'status': {
@@ -59,6 +94,8 @@ def index():
     }), 200
 
 @app.route("/prediction", methods=["POST"])
+@auth.login_required
+@limiter.limit("20 per hour")
 def prediction():
     try:
         if request.method == "POST":
@@ -72,6 +109,11 @@ def prediction():
                     predicted_class, confidence_scores = predict_image_class(image.read())
 
                     image.save(image_path)
+                    
+                    if predicted_class == "Blur":
+                        accepted = False
+                    elif predicted_class == "Bokeh" or predicted_class == "Normal":
+                        accepted = True
 
                     return jsonify({
                         'status': {
@@ -80,7 +122,8 @@ def prediction():
                         },
                         "data": {
                             "predicted_class": predicted_class,
-                            "confidence_scores": confidence_scores
+                            "confidence_scores": confidence_scores,
+                            "accepted": accepted
                         }
                     }), 200
                 else:
@@ -159,4 +202,4 @@ if not os.path.exists(upload_folder):
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=True)
+    app.run(host='0.0.0.0', port=port, debug=False)
