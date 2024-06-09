@@ -28,10 +28,12 @@ cd ML_Deploy
 
 ### 2. Set up the environment
 
+Create a file with name ".env"
 Ensure you have a .env file with the following content:
+Replace the `<SECRET_KEY>` with anything you want. Make sure you remember it, and make it unique!
 
 ```
-SECRET_KEY=C241-BB01Bangkit2024Batch1BlurOrBokehBraincore
+SECRET_KEY=<SECRET_KEY>
 ```
 
 
@@ -48,9 +50,11 @@ pip install -r requirements.txt
 ### 4. Run the application
 #### Running with Flask
 
+Replace the `<SECRET_KEY>` with the one that you have set it up in your .env
+
 ```bash
 export FLASK_APP=app.py
-export SECRET_KEY=C241-BB01Bangkit2024Batch1BlurOrBokehBraincore  # If not set in .env
+export SECRET_KEY=<SECRET_KEY>  
 flask run --host=0.0.0.0 --port=5000
 ```
 
@@ -64,7 +68,7 @@ Note: Secret Key is being set through the .env
 
 Run the Docker container:
 ```bash
-docker run -p [any port]:5000 -e SECRET_KEY=C241-BB01Bangkit2024Batch1BlurOrBokehBraincore flask_ml
+docker run -p [any port]:5000 -e SECRET_KEY=SECRET_KEY flask_ml
 ```
 
 Afterward, this can be accessed in your local http://127.0.0.1:[any port]
